@@ -20,52 +20,93 @@ CMD_SEND_TOUCHMAP       = 0x07
 CMD_SEND_RAWTOUCH       = 0x09
 CMD_SEND_RC             = 0x0b
 
+import serial
+
 class PanelController:
-	maxroutes = 0
-	routelen = 0
+    cid = 0
+    maxroutes = 0
+    routelen = 0
 
-	serialport = 0
+    touches = []
 
-	def __init__(self, commpath):
-		serialport = open(commpath, 'w')
+    ser = 0
 
-	def show_route(self, id, color, heartbeat, holds):
-		cmd = "%02d %d %d %d %d %d %d" % (CMD_SHOW_ROUTE, id, len(holds), color[0], color[1], color[2], heartbeat)
-		for hold in holds:
-			cmd += " %d" % (hold)
-		cmd += "\n"
+    def __init__(self, commpath, controllerid):
+        self.ser = serial.Serial(commpath, 115200)
+        self.cid = controllerid
 
-		print cmd
+    def show_route(self, id, color, heartbeat, holds):
+        cmd = "%02d %d %d %d %d %d %d" % (CMD_SHOW_ROUTE, id, len(holds), color[0], color[1], color[2], heartbeat)
+        for hold in holds:
+            cmd += " %d" % (hold)
+        cmd += "\n"
 
-	def hide_route(self, id):
-		print "%02d %d\n" % (CMD_HIDE_ROUTE, id)
+        self.ser.write(cmd)
 
-	def set_brightness(self, brightness):
-		print "%02d %d %d %d\n" % (CMD_SET_BRIGHTNESS, brightness[0], brightness[1], brightness[2])
+    def hide_route(self, id):
+        self.ser.write("%02d %d\n" % (CMD_HIDE_ROUTE, id))
 
-	def get_brightness(self):
-		print "%02d\n" % (CMD_GET_BRIGHTNESS)
-		return (1, 1, 1)
+    def set_brightness(self, brightness):
+        self.ser.write("%02d %d %d %d\n" % (CMD_SET_BRIGHTNESS, brightness[0], brightness[1], brightness[2]))
+        
+    def get_brightness(self):
+        self.ser.write("%02d\n" % (CMD_GET_BRIGHTNESS))
+        r = self.wait_response("%02d" % (CMD_SEND_BRIGHTNESS))
+        r = map(int, r[3:].strip().split(' '))
+        return r
 
-	def get_capabilities(self):
-		print "%02d\n" % (CMD_GET_CAPABILITIES)
-		return (8, 20)
+    def get_capabilities(self):
+        self.ser.write("%02d\n" % (CMD_GET_CAPABILITIES))
+        r = self.wait_response("%02d" % (CMD_SEND_CAPABILITIES))
+        r = map(int, r[3:].strip().split(' '))
+        return r
 
-	def raw_touch(self):
-		print "%02d\n" % (CMD_RAW_TOUCH_MODE)
+    def get_touchmap(self):
+        self.ser.write("%02d\n" % (CMD_GET_TOUCHMAP))
+        r = self.wait_response("%02d" % (CMD_SEND_TOUCHMAP))
+        r = map(int, r[3:].strip().split(' '))
+        return r
+        
+    def raw_touch(self):
+        self.ser.write("%02d\n" % (CMD_RAW_TOUCH_MODE))
 
-	def get_rc_levels(self):
-		print "%02d\n" % (CMD_GET_RC)
-		return (1, 1, 1, 1, 1, 1)
+    def get_rc_levels(self):
+        self.ser.write("%02d\n" % (CMD_GET_RC))
+        r = self.wait_response("%02d" % (CMD_SEND_RC))
+        r = map(int, r[3:].strip().split(' '))
+        return r
 
-	def set_rc_levels(self, levels):
-		cmd = "%02d" % (CMD_GET_RC)
-		for level in levels:
-			cmd += " %d" % (level)
-		cmd += "\n"
-		
-		print cmd
+    def set_rc_levels(self, levels):
+        cmd = "%02d" % (CMD_GET_RC)
+        for level in levels:
+            cmd += " %d" % (level)
+        cmd += "\n"
+        
+        self.ser.write(cmd)
 
+    def wait_response(self, cmdstr):
+        while 1:
+            cmd = self.ser.readline()
+            if cmd.startswith(cmdstr):
+                return cmd
 
+    def check_buffer(self):
+        while self.ser.inWaiting() > 0:
+            print self.ser.readline(),
 
+    def process_serial(self):
+        while self.ser.inWaiting() > 0:
+            self.handle_command(self.ser.readline())
+
+    def handle_command(self, cmdstr):
+        if cmdstr.startswith("%02d" % CMD_SEND_RAWTOUCH):
+            self.touches.append(map(int, cmdstr[3:].split(' ')))
+
+    def get_touches(self):
+        self.process_serial()
+        t = self.touches
+        self.touches = []
+        return t
+
+pc = PanelController("COM11")
 
