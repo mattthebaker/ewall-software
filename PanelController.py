@@ -23,25 +23,36 @@ CMD_SEND_RC             = 0x0b
 import serial
 
 class PanelController:
-    cid = 0
-    maxroutes = 0
-    routelen = 0
-
-    touches = []
-
-    ser = 0
 
     def __init__(self, commpath, controllerid):
         self.ser = serial.Serial(commpath, 115200)
         self.cid = controllerid
 
+        self.maxroutes = 0
+        self.routelen = 0
+
+        self.touches = []
+
+    #    self.maxroutes, self.routelen = self.get_capabilities()
+        self.raw_touch()
+
     def show_route(self, id, color, heartbeat, holds):
+        if not holds:
+            self.hide_route(id)
+            return
+        
         cmd = "%02d %d %d %d %d %d %d" % (CMD_SHOW_ROUTE, id, len(holds), color[0], color[1], color[2], heartbeat)
         for hold in holds:
             cmd += " %d" % (hold)
         cmd += "\n"
 
         self.ser.write(cmd)
+        print cmd
+
+    def update_route(self, id, color, heartbeat, holds):
+        # for now, controller firmware checks for a matching id first when showing
+        # and overwrites that route
+        self.show_route(id, color, heartbeat, holds)
 
     def hide_route(self, id):
         self.ser.write("%02d %d\n" % (CMD_HIDE_ROUTE, id))
@@ -107,6 +118,4 @@ class PanelController:
         t = self.touches
         self.touches = []
         return t
-
-pc = PanelController("COM11")
 
