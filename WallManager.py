@@ -262,8 +262,23 @@ class WallManager:
         touches = []
 
         c = self.sql3conn.cursor()
+
+        sports = []
+        for ctrlr in self.controllers:
+            sports.append(ctrlr.ser)
         
         while 1:
+            sel = select.select([self.sock]+sports, [], [], 1)
+            for s in sel[0]:
+                if s == self.sock:
+                    conn = self.sock.accept()[0]
+                    cmd = conn.recv(1024)
+                    conn.close()
+                    cmd = pickle.loads(cmd)
+                    print "Received Command:"
+                    print cmd
+                    self.parse_command(cmd)
+
             for ctrlr in self.controllers:
                 tc = ctrlr.get_touches()
                 if tc:
@@ -271,16 +286,6 @@ class WallManager:
                         t.insert(0, ctrlr.cid)
                         print t
                         touches.append(t)
-
-            sel = select.select([self.sock], [], [], 0)
-            for s in sel[0]:
-                conn = self.sock.accept()[0]
-                cmd = conn.recv(1024)
-                conn.close()
-                cmd = pickle.loads(cmd)
-                print "Received Command:"
-                print cmd
-                self.parse_command(cmd)
 
             if self.touchen:
                 if touches:
@@ -314,7 +319,7 @@ if sys.argv[1] == "-S":
     wm.run()
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('127.0.0.1', 48790))
+sock.connect(('192.168.1.1', 48790))
 ##cmd = ""
 ##for i in range(1, len(sys.argv) - 1):
 ##    cmd += sys.argv[i] + " "
