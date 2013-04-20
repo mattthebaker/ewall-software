@@ -111,6 +111,7 @@ class PanelController:
 
     def handle_command(self, cmdstr):
         if cmdstr.startswith("%02d" % CMD_SEND_RAWTOUCH):
+            print cmdstr[3:]
             self.touches.append(map(int, cmdstr[3:].split(' ')))
 
     def get_touches(self):
