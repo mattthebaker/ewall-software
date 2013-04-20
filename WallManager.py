@@ -12,7 +12,6 @@ from PanelController import PanelController
 
 class RouteSet:
 
-
     def __init__(self, did, color):
         self.did = did
         self.color = color
@@ -31,7 +30,7 @@ class WallManager:
         self.controllers = []
 
         self.idpool = range(1, 255)
-        self.colorpool = [(255, 255, 0), (0, 255, 255), (255, 0, 255), (255, 0 , 0), (0, 255, 0), (0, 0, 255)]
+        self.colorpool = [(255, 255, 0), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 0 , 0), (0, 255, 0), (0, 0, 255)]
 
         self.activeroutes = []
 
@@ -42,7 +41,7 @@ class WallManager:
         self.touchen = False
         self.randtouchen = False
         self.randtouchrid = None
-        
+
         self.sql3conn = sqlite3.connect(dbpath)
 
         c = self.sql3conn.cursor()
@@ -61,6 +60,8 @@ class WallManager:
                 color = self.colorpool.pop(0)
             else:
                 return
+        else:
+            self.colorpool.remove(color)
 
         if len(self.idpool):
             did = self.idpool.pop(0)
@@ -68,6 +69,8 @@ class WallManager:
             return
 
         c = self.sql3conn.cursor()
+
+        mroute = []
 
         for ctrlr in self.controllers:
             holds = []
@@ -79,7 +82,10 @@ class WallManager:
                 holds.append(row[0])
             if holds:
                 ctrlr.show_route(did, color, 0, holds)
-                self.activeroutes.append((routeid, did, color))
+                mroute.append((routeid, did, color))
+
+        if len(mroute):
+            self.activeroutes.append(mroute[0])
 
         return routeid
 
@@ -95,9 +101,18 @@ class WallManager:
         c.execute("select r.id from route as r where r.difficulty = ?", (difficulty,))
         rows = c.fetchall()
 
-        row = rows[random.randint(0, len(rows) - 1)]
+        for r in rows:
+            for rt in self.activeroutes:
+                if r == rt[0]:
+                    rows.remove(r)
 
-        self.show_route_byid(row[0], color)
+        if len(rows):
+            row = rows[random.randint(0, len(rows) - 1)]
+
+            self.show_route_byid(row[0], color)
+            return row[0]
+
+        return 0
 
     def random_route_byhold(self, holdpos, cntrlrid, color=None):
         if self.randtouchrid:
@@ -111,14 +126,22 @@ class WallManager:
                   'and rh.controller_id = ? ', (holdpos, cntrlrid,))
         
         rows = c.fetchall()
-        row = rows[random.randint(0, len(rows) - 1)]
 
-        self.randtouchrid = self.show_route_byid(row[0], color)        
+        for r in rows:
+            for rt in self.activeroutes:
+                if r == rt[0]:
+                    rows.remove(r)
+
+        if len(rows):            
+            row = rows[random.randint(0, len(rows) - 1)]
+
+            self.randtouchrid = self.show_route_byid(row[0], color)        
             
     def hide_route_byid(self, routeid):
         for r in self.activeroutes:
             if r[0] == routeid:
                 route = r
+                self.activeroutes.remove(r)
 
         for cntrlr in self.controllers:
             cntrlr.hide_route(route[1])
@@ -220,11 +243,11 @@ class WallManager:
                     self.randtouchen = False
                     self.touchen = False
                 else:
-                    self.save_route()
+                    rid = self.save_route()
                     if self.ts:                     # should remove ts from memory and redisplay route in same color instead
-                        self.ts.heartbeat = 0
-                        self.ts.change = 1
-                        self.rs_refresh_display()
+                        c = self.ts.color
+                        self.mode_touchtoggle_exit()
+                        self.show_route_byid(rid, c)
 
             elif o == "-n":
                 if self.ts:

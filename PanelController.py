@@ -34,7 +34,7 @@ class PanelController:
         self.touches = []
 
     #    self.maxroutes, self.routelen = self.get_capabilities()
-        self.raw_touch()
+    #    self.raw_touch()
 
     def show_route(self, id, color, heartbeat, holds):
         if not holds:
@@ -47,7 +47,7 @@ class PanelController:
         cmd += "\n"
 
         self.ser.write(cmd)
-        print cmd
+        print cmd,
 
     def update_route(self, id, color, heartbeat, holds):
         # for now, controller firmware checks for a matching id first when showing
