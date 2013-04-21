@@ -109,8 +109,8 @@ class WallManager:
         if len(rows):
             row = rows[random.randint(0, len(rows) - 1)]
 
-            self.show_route_byid(row[0], color)
-            return row[0]
+            self.show_route_byid(row, color)
+            return row
 
         return 0
 
@@ -143,13 +143,16 @@ class WallManager:
                 route = r
                 self.activeroutes.remove(r)
 
-        for cntrlr in self.controllers:
-            cntrlr.hide_route(route[1])
+        print route
+        if route:
+            for cntrlr in self.controllers:
+                cntrlr.hide_route(route[1])
 
-        self.idpool.append(route[1])
-        self.colorpool.append(route[2])
+            self.idpool.append(route[1])
+            self.colorpool.append(route[2])
 
     def hide_route_all(self):
+        print self.activeroutes
         for rid, did, color in self.activeroutes:
             self.hide_route_byid(rid)
         self.activeroutes = []
@@ -231,6 +234,7 @@ class WallManager:
                     self.ts.difficulty = difficulty
                 if random:
                     self.random_route_bydifficulty(difficulty)
+                    random = 0
 
             elif o == "-i":
                 if self.ts:
